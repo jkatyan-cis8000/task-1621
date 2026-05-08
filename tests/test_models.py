@@ -598,3 +598,69 @@ class TestTodoUpdateValidation:
         """Test that update strips whitespace from category."""
         sample_todo.update(category="  New Cat  ")
         assert sample_todo.category == "New Cat"
+
+
+class TestTodoEdgeCases:
+    """Test edge cases and error conditions for Todo."""
+    
+    def test_from_dict_missing_required_fields(self):
+        """Test from_dict with missing required fields raises ValueError."""
+        data_missing_title = {
+            "description": "Description",
+            "priority": "medium",
+            "category": "Test",
+            "completed": False
+        }
+        
+        with pytest.raises(ValueError, match="Missing required fields"):
+            Todo.from_dict(data_missing_title)
+    
+    def test_from_dict_missing_multiple_required_fields(self):
+        """Test from_dict with multiple missing required fields."""
+        data_minimal = {
+            "title": "Task",
+        }
+        
+        with pytest.raises(ValueError, match="Missing required fields"):
+            Todo.from_dict(data_minimal)
+    
+    def test_equality_with_non_todo_object(self):
+        """Test __eq__ with non-Todo object returns NotImplemented."""
+        todo = Todo(title="Task", description="Desc")
+        
+        # Comparing with non-Todo object
+        assert (todo == "string") is False
+        assert (todo == 123) is False
+        assert (todo == None) is False
+        assert (todo == {}) is False
+    
+    def test_equality_with_same_todo(self):
+        """Test __eq__ with same Todo object."""
+        todo = Todo(title="Task", description="Desc", priority="high", category="Test")
+        
+        # Same object should be equal to itself
+        assert todo == todo
+    
+    def test_equality_with_different_todos(self):
+        """Test __eq__ with different Todo objects."""
+        todo1 = Todo(title="Task1", description="Desc")
+        todo2 = Todo(title="Task2", description="Desc")
+        
+        # Different titles should not be equal
+        assert todo1 != todo2
+    
+    def test_todo_repr_string(self):
+        """Test __repr__ produces valid string representation."""
+        todo = Todo(
+            title="Buy milk",
+            description="At the store",
+            priority="high",
+            category="Shopping",
+            id=42
+        )
+        
+        repr_str = repr(todo)
+        assert "Todo" in repr_str
+        assert "Buy milk" in repr_str
+        assert "high" in repr_str
+        assert "42" in repr_str
