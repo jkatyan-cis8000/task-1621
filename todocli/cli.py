@@ -40,23 +40,23 @@ class TodoCLI:
             description: Optional detailed description
             priority: Priority level (high, medium, low)
             category: Optional category/tag
+            
+        Raises:
+            ValueError: If title is empty or priority is invalid
+            TypeError: If fields are of wrong type
         """
-        try:
-            todo = Todo(
-                title=title,
-                description=description,
-                priority=priority,
-                category=category
-            )
-            todo_id = self.db.add_todo(todo)
-            print(f"✓ Todo added with ID: {todo_id}")
-            print(f"  Title: {title}")
-            if category:
-                print(f"  Category: {category}")
-            print(f"  Priority: {priority}")
-        except ValueError as e:
-            print(f"✗ Error: {e}", file=sys.stderr)
-            sys.exit(1)
+        todo = Todo(
+            title=title,
+            description=description,
+            priority=priority,
+            category=category
+        )
+        todo_id = self.db.add_todo(todo)
+        print(f"✓ Todo added with ID: {todo_id}")
+        print(f"  Title: {title}")
+        if category:
+            print(f"  Category: {category}")
+        print(f"  Priority: {priority}")
     
     def list(self, category: Optional[str] = None, priority: Optional[str] = None,
              completed: Optional[bool] = None, format: str = "table") -> None:
@@ -68,6 +68,9 @@ class TodoCLI:
             priority: Filter by priority level (optional)
             completed: Filter by completion status (optional)
             format: Output format ('table' or 'simple')
+            
+        Raises:
+            ValueError: If filter values are invalid
         """
         filters = {}
         if category is not None:
@@ -77,21 +80,16 @@ class TodoCLI:
         if completed is not None:
             filters["completed"] = completed
         
-        try:
-            todos = self.db.get_todos(filters)
-            
-            if not todos:
-                print("No todos found.")
-                return
-            
-            if format == "table":
-                self._print_table(todos)
-            else:
-                self._print_simple(todos)
+        todos = self.db.get_todos(filters)
         
-        except ValueError as e:
-            print(f"✗ Error: {e}", file=sys.stderr)
-            sys.exit(1)
+        if not todos:
+            print("No todos found.")
+            return
+        
+        if format == "table":
+            self._print_table(todos)
+        else:
+            self._print_simple(todos)
     
     def complete(self, todo_id: int) -> None:
         """
@@ -99,16 +97,13 @@ class TodoCLI:
         
         Args:
             todo_id: ID of the todo to mark complete
+            
+        Raises:
+            ValueError: If todo_id is invalid
         """
-        try:
-            if self.db.mark_complete(todo_id):
-                print(f"✓ Todo {todo_id} marked as complete")
-            else:
-                print(f"✗ Todo {todo_id} not found", file=sys.stderr)
-                sys.exit(1)
-        except ValueError as e:
-            print(f"✗ Error: {e}", file=sys.stderr)
-            sys.exit(1)
+        if not self.db.mark_complete(todo_id):
+            raise ValueError(f"Todo {todo_id} not found")
+        print(f"✓ Todo {todo_id} marked as complete")
     
     def delete(self, todo_id: int) -> None:
         """
@@ -116,16 +111,13 @@ class TodoCLI:
         
         Args:
             todo_id: ID of the todo to delete
+            
+        Raises:
+            ValueError: If todo_id is invalid
         """
-        try:
-            if self.db.delete_todo(todo_id):
-                print(f"✓ Todo {todo_id} deleted")
-            else:
-                print(f"✗ Todo {todo_id} not found", file=sys.stderr)
-                sys.exit(1)
-        except ValueError as e:
-            print(f"✗ Error: {e}", file=sys.stderr)
-            sys.exit(1)
+        if not self.db.delete_todo(todo_id):
+            raise ValueError(f"Todo {todo_id} not found")
+        print(f"✓ Todo {todo_id} deleted")
     
     def export(self, filepath: str, category: Optional[str] = None) -> None:
         """
@@ -134,30 +126,26 @@ class TodoCLI:
         Args:
             filepath: Path where to save the CSV file
             category: Optional - export only todos from this category
+            
+        Raises:
+            FileNotFoundError: If the filepath is invalid
+            ValueError: If filter values are invalid
         """
-        try:
-            # Import here to avoid circular imports
-            from todocli.exporter import export_to_csv, export_by_category
-            
-            todos = self.db.get_todos({"category": category} if category else None)
-            
-            if not todos:
-                print("No todos to export.")
-                return
-            
-            if category:
-                export_by_category(todos, category, filepath)
-            else:
-                export_to_csv(todos, filepath)
-            
-            print(f"✓ Exported {len(todos)} todos to {filepath}")
+        # Import here to avoid circular imports
+        from todocli.exporter import export_to_csv, export_by_category
         
-        except FileNotFoundError as e:
-            print(f"✗ Error: {e}", file=sys.stderr)
-            sys.exit(1)
-        except Exception as e:
-            print(f"✗ Error: {e}", file=sys.stderr)
-            sys.exit(1)
+        todos = self.db.get_todos({"category": category} if category else None)
+        
+        if not todos:
+            print("No todos to export.")
+            return
+        
+        if category:
+            export_by_category(todos, category, filepath)
+        else:
+            export_to_csv(todos, filepath)
+        
+        print(f"✓ Exported {len(todos)} todos to {filepath}")
     
     def _print_table(self, todos: List[Todo]) -> None:
         """
@@ -297,36 +285,43 @@ Examples:
     # Create CLI instance
     cli = TodoCLI(parsed_args.db)
     
-    # Execute command
-    if parsed_args.command == "add":
-        cli.add(
-            title=parsed_args.title,
-            description=parsed_args.description,
-            priority=parsed_args.priority,
-            category=parsed_args.category
-        )
-    elif parsed_args.command == "list":
-        completed = None
-        if parsed_args.completed:
-            completed = True
-        elif parsed_args.incomplete:
-            completed = False
-        
-        cli.list(
-            category=parsed_args.category,
-            priority=parsed_args.priority,
-            completed=completed,
-            format=parsed_args.format
-        )
-    elif parsed_args.command == "complete":
-        cli.complete(parsed_args.id)
-    elif parsed_args.command == "delete":
-        cli.delete(parsed_args.id)
-    elif parsed_args.command == "export":
-        cli.export(parsed_args.filepath, parsed_args.category)
-    else:
-        parser.print_help()
-        sys.exit(0)
+    try:
+        # Execute command
+        if parsed_args.command == "add":
+            cli.add(
+                title=parsed_args.title,
+                description=parsed_args.description,
+                priority=parsed_args.priority,
+                category=parsed_args.category
+            )
+        elif parsed_args.command == "list":
+            completed = None
+            if parsed_args.completed:
+                completed = True
+            elif parsed_args.incomplete:
+                completed = False
+            
+            cli.list(
+                category=parsed_args.category,
+                priority=parsed_args.priority,
+                completed=completed,
+                format=parsed_args.format
+            )
+        elif parsed_args.command == "complete":
+            cli.complete(parsed_args.id)
+        elif parsed_args.command == "delete":
+            cli.delete(parsed_args.id)
+        elif parsed_args.command == "export":
+            cli.export(parsed_args.filepath, parsed_args.category)
+        else:
+            parser.print_help()
+            sys.exit(0)
+    except (ValueError, TypeError, FileNotFoundError) as e:
+        print(f"✗ Error: {e}", file=sys.stderr)
+        sys.exit(1)
+    except Exception as e:
+        print(f"✗ Unexpected error: {e}", file=sys.stderr)
+        sys.exit(1)
 
 
 if __name__ == "__main__":

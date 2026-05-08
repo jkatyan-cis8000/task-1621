@@ -450,3 +450,151 @@ class TestTodoEdgeCases:
         )
         assert isinstance(todo.created_at, datetime)
         assert isinstance(todo.updated_at, datetime)
+
+
+class TestTodoMethods:
+    """Test Todo helper methods."""
+    
+    def test_mark_complete_method(self, sample_todo):
+        """Test mark_complete method."""
+        assert sample_todo.completed is False
+        sample_todo.mark_complete()
+        assert sample_todo.completed is True
+    
+    def test_mark_incomplete_method(self, sample_todo):
+        """Test mark_incomplete method."""
+        sample_todo.completed = True
+        sample_todo.mark_incomplete()
+        assert sample_todo.completed is False
+    
+    def test_mark_complete_updates_timestamp(self, sample_todo):
+        """Test that mark_complete updates timestamp."""
+        original_time = sample_todo.updated_at
+        import time
+        time.sleep(0.01)
+        sample_todo.mark_complete()
+        assert sample_todo.updated_at > original_time
+    
+    def test_mark_incomplete_updates_timestamp(self, sample_todo):
+        """Test that mark_incomplete updates timestamp."""
+        original_time = sample_todo.updated_at
+        import time
+        time.sleep(0.01)
+        sample_todo.mark_incomplete()
+        assert sample_todo.updated_at > original_time
+    
+    def test_update_title(self, sample_todo):
+        """Test updating title via update method."""
+        sample_todo.update(title="New Title")
+        assert sample_todo.title == "New Title"
+    
+    def test_update_description(self, sample_todo):
+        """Test updating description via update method."""
+        sample_todo.update(description="New Description")
+        assert sample_todo.description == "New Description"
+    
+    def test_update_priority(self, sample_todo):
+        """Test updating priority via update method."""
+        sample_todo.update(priority="low")
+        assert sample_todo.priority == "low"
+    
+    def test_update_category(self, sample_todo):
+        """Test updating category via update method."""
+        sample_todo.update(category="NewCategory")
+        assert sample_todo.category == "NewCategory"
+    
+    def test_update_multiple_fields(self, sample_todo):
+        """Test updating multiple fields at once."""
+        sample_todo.update(
+            title="New Title",
+            priority="low",
+            category="Updated"
+        )
+        assert sample_todo.title == "New Title"
+        assert sample_todo.priority == "low"
+        assert sample_todo.category == "Updated"
+    
+    def test_update_with_invalid_field(self, sample_todo):
+        """Test that update raises error for invalid field."""
+        with pytest.raises(ValueError):
+            sample_todo.update(completed=True)  # Cannot update completed via update()
+    
+    def test_update_with_invalid_title(self, sample_todo):
+        """Test that update rejects empty title."""
+        with pytest.raises(ValueError):
+            sample_todo.update(title="")
+    
+    def test_update_with_invalid_priority(self, sample_todo):
+        """Test that update rejects invalid priority."""
+        with pytest.raises(ValueError):
+            sample_todo.update(priority="urgent")
+    
+    def test_update_timestamp_changes(self, sample_todo):
+        """Test that update changes updated_at timestamp."""
+        original_time = sample_todo.updated_at
+        import time
+        time.sleep(0.01)
+        sample_todo.update(title="New Title")
+        assert sample_todo.updated_at > original_time
+    
+    def test_repr_method(self, sample_todo):
+        """Test string representation of Todo."""
+        repr_str = repr(sample_todo)
+        assert "Todo(" in repr_str
+        assert sample_todo.title in repr_str
+        assert sample_todo.priority in repr_str
+
+
+class TestTodoTypeValidation:
+    """Test type validation in Todo constructor."""
+    
+    def test_description_must_be_string(self):
+        """Test that description must be string."""
+        with pytest.raises(TypeError):
+            Todo("Task", description=123, priority="medium", category="Test")
+    
+    def test_category_must_be_string(self):
+        """Test that category must be string."""
+        with pytest.raises(TypeError):
+            Todo("Task", description="Desc", priority="medium", category=123)
+    
+    def test_completed_must_be_boolean(self):
+        """Test that completed must be boolean."""
+        with pytest.raises(TypeError):
+            Todo("Task", description="Desc", priority="medium", 
+                 category="Test", completed="yes")
+    
+    def test_id_must_be_int_or_none(self):
+        """Test that ID must be int or None."""
+        with pytest.raises(TypeError):
+            Todo("Task", description="Desc", priority="medium", 
+                 category="Test", id="1")
+
+
+class TestTodoUpdateValidation:
+    """Test validation in update method."""
+    
+    def test_update_description_must_be_string(self, sample_todo):
+        """Test that update rejects non-string description."""
+        with pytest.raises(TypeError):
+            sample_todo.update(description=123)
+    
+    def test_update_category_must_be_string(self, sample_todo):
+        """Test that update rejects non-string category."""
+        with pytest.raises(TypeError):
+            sample_todo.update(category=123)
+    
+    def test_update_title_whitespace_stripped(self, sample_todo):
+        """Test that update strips whitespace from title."""
+        sample_todo.update(title="  New Title  ")
+        assert sample_todo.title == "New Title"
+    
+    def test_update_description_whitespace_stripped(self, sample_todo):
+        """Test that update strips whitespace from description."""
+        sample_todo.update(description="  New Desc  ")
+        assert sample_todo.description == "New Desc"
+    
+    def test_update_category_whitespace_stripped(self, sample_todo):
+        """Test that update strips whitespace from category."""
+        sample_todo.update(category="  New Cat  ")
+        assert sample_todo.category == "New Cat"

@@ -409,3 +409,124 @@ class TestDatabasePersistence:
         
         assert len(todos) == 1
         assert todos[0].title == sample_todo.title
+
+
+class TestDatabaseErrorHandling:
+    """Test database error handling."""
+    
+    def test_add_todo_with_existing_id_raises_error(self, db_instance):
+        """Test that adding a todo with an ID raises ValueError."""
+        todo = Todo("Task", "Desc", "high", "Work", id=1)
+        
+        with pytest.raises(ValueError):
+            db_instance.add_todo(todo)
+    
+    def test_invalid_priority_rejected(self, db_instance):
+        """Test that invalid priorities are caught during validation."""
+        # This should fail at the Todo level, not database level
+        with pytest.raises(ValueError):
+            todo = Todo("Task", "Desc", "invalid", "Work")
+    
+    def test_empty_title_rejected(self, db_instance):
+        """Test that empty titles are caught during validation."""
+        with pytest.raises(ValueError):
+            todo = Todo("", "Desc", "high", "Work")
+    
+    def test_database_parent_directory_creation(self, temp_dir):
+        """Test that parent directories are created automatically."""
+        db_path = os.path.join(temp_dir, "subdir", "nested", "todos.db")
+        db = Database(db_path)
+        db.init_db()
+        
+        assert os.path.exists(db_path)
+    
+    def test_get_todos_with_invalid_filters_type(self, db_instance, sample_todo):
+        """Test that get_todos handles various filter types."""
+        db_instance.add_todo(sample_todo)
+        
+        # Filters should be a dict or None
+        todos = db_instance.get_todos(filters=None)
+        assert len(todos) == 1
+        
+        todos = db_instance.get_todos(filters={})
+        assert len(todos) == 1
+    
+    def test_filter_returns_correct_subset(self, populated_db):
+        """Test that filters return correct subset size."""
+        all_todos = populated_db.get_todos()
+        assert len(all_todos) > 0
+        
+        # Filter by a category
+        categories = set(t.category for t in all_todos if t.category)
+        if categories:
+            category = list(categories)[0]
+            filtered = populated_db.get_todos(filters={"category": category})
+            # All should match
+            assert all(t.category == category for t in filtered)
+            # At least one should match
+            assert len(filtered) >= 1
+
+
+class TestDatabaseInitialState:
+    """Test database initial state and setup."""
+    
+    def test_new_database_is_empty(self, db_instance):
+        """Test that newly initialized database is empty."""
+        todos = db_instance.get_todos()
+        assert len(todos) == 0
+        assert isinstance(todos, list)
+    
+    def test_init_db_creates_table_structure(self, temp_db_file):
+        """Test that init_db creates proper table structure."""
+        db = Database(temp_db_file)
+        db.init_db()
+        
+        # Try to add and retrieve a todo to verify structure
+        todo = Todo("Test", "Desc", "high", "Work")
+        todo_id = db.add_todo(todo)
+        assert todo_id is not None
+        
+        todos = db.get_todos()
+        assert len(todos) == 1
+    
+    def test_multiple_init_db_calls_safe(self, db_instance):
+        """Test that multiple init_db calls don't cause errors."""
+        db_instance.init_db()
+        db_instance.init_db()
+        
+        # Database should still work
+        todos = db_instance.get_todos()
+        assert isinstance(todos, list)
+
+
+class TestDatabaseConversion:
+    """Test database conversion between Todo objects and database rows."""
+    
+    def test_todo_roundtrip_preserves_data(self, db_instance, sample_todo):
+        """Test that a todo survives a roundtrip to and from database."""
+        todo_id = db_instance.add_todo(sample_todo)
+        
+        todos = db_instance.get_todos()
+        retrieved = next(t for t in todos if t.id == todo_id)
+        
+        # Compare key fields
+        assert retrieved.title == sample_todo.title
+        assert retrieved.description == sample_todo.description
+        assert retrieved.priority == sample_todo.priority
+        assert retrieved.category == sample_todo.category
+        assert retrieved.completed == sample_todo.completed
+    
+    def test_completed_status_stored_correctly(self, db_instance):
+        """Test that completed status is stored and retrieved correctly."""
+        todo_true = Todo("Task 1", "Desc", "high", "Work", completed=True)
+        todo_false = Todo("Task 2", "Desc", "high", "Work", completed=False)
+        
+        db_instance.add_todo(todo_true)
+        db_instance.add_todo(todo_false)
+        
+        todos = db_instance.get_todos()
+        true_todo = next(t for t in todos if t.title == "Task 1")
+        false_todo = next(t for t in todos if t.title == "Task 2")
+        
+        assert true_todo.completed is True
+        assert false_todo.completed is False

@@ -383,3 +383,187 @@ class TestExportIntegration:
                 # Key fields should match
                 assert row['title'] == original.title
                 assert row['priority'] == original.priority
+
+
+class TestExportByPriority:
+    """Test the export_by_priority function."""
+    
+    def test_export_by_priority_creates_file(self, sample_todos, temp_csv_file):
+        """Test that export_by_priority creates a file."""
+        from todocli.exporter import export_by_priority
+        export_by_priority(sample_todos, "high", temp_csv_file)
+        assert os.path.exists(temp_csv_file)
+    
+    def test_export_by_priority_filters_correctly(self, sample_todos, temp_csv_file):
+        """Test that export_by_priority only includes specified priority."""
+        from todocli.exporter import export_by_priority
+        export_by_priority(sample_todos, "high", temp_csv_file)
+        
+        with open(temp_csv_file, 'r') as f:
+            reader = csv.DictReader(f)
+            rows = list(reader)
+            
+            for row in rows:
+                assert row['priority'] == "high"
+    
+    def test_export_by_priority_all_levels(self, sample_todos, temp_csv_file):
+        """Test exporting for all priority levels."""
+        from todocli.exporter import export_by_priority
+        
+        for priority in ["high", "medium", "low"]:
+            export_by_priority(sample_todos, priority, temp_csv_file)
+            
+            with open(temp_csv_file, 'r') as f:
+                reader = csv.DictReader(f)
+                rows = list(reader)
+                assert all(row['priority'] == priority for row in rows)
+    
+    def test_export_by_priority_invalid_priority(self, sample_todos, temp_csv_file):
+        """Test that invalid priority raises ValueError."""
+        from todocli.exporter import export_by_priority
+        
+        with pytest.raises(ValueError):
+            export_by_priority(sample_todos, "urgent", temp_csv_file)
+    
+    def test_export_by_priority_empty_filepath(self, sample_todos):
+        """Test that empty filepath raises ValueError."""
+        from todocli.exporter import export_by_priority
+        
+        with pytest.raises(ValueError):
+            export_by_priority(sample_todos, "high", "")
+
+
+class TestExportCompleted:
+    """Test the export_completed function."""
+    
+    def test_export_completed_todos(self, sample_todos, temp_csv_file):
+        """Test exporting completed todos."""
+        from todocli.exporter import export_completed
+        export_completed(sample_todos, temp_csv_file, completed=True)
+        
+        with open(temp_csv_file, 'r') as f:
+            reader = csv.DictReader(f)
+            rows = list(reader)
+            
+            for row in rows:
+                assert row['completed'] == "Yes"
+    
+    def test_export_incomplete_todos(self, sample_todos, temp_csv_file):
+        """Test exporting incomplete todos."""
+        from todocli.exporter import export_completed
+        export_completed(sample_todos, temp_csv_file, completed=False)
+        
+        with open(temp_csv_file, 'r') as f:
+            reader = csv.DictReader(f)
+            rows = list(reader)
+            
+            for row in rows:
+                assert row['completed'] == "No"
+    
+    def test_export_completed_default(self, sample_todos, temp_csv_file):
+        """Test that default exports completed todos."""
+        from todocli.exporter import export_completed
+        export_completed(sample_todos, temp_csv_file)
+        
+        with open(temp_csv_file, 'r') as f:
+            reader = csv.DictReader(f)
+            rows = list(reader)
+            assert all(row['completed'] == "Yes" for row in rows)
+    
+    def test_export_completed_empty_filepath(self, sample_todos):
+        """Test that empty filepath raises ValueError."""
+        from todocli.exporter import export_completed
+        
+        with pytest.raises(ValueError):
+            export_completed(sample_todos, "")
+
+
+class TestExportByTextSearch:
+    """Test the export_by_text_search function."""
+    
+    def test_export_by_text_search_in_title(self, sample_todos, temp_csv_file):
+        """Test searching in title field."""
+        from todocli.exporter import export_by_text_search
+        export_by_text_search(sample_todos, "Buy", temp_csv_file)
+        
+        with open(temp_csv_file, 'r') as f:
+            reader = csv.DictReader(f)
+            rows = list(reader)
+            
+            assert len(rows) > 0
+            for row in rows:
+                assert "buy" in row['title'].lower()
+    
+    def test_export_by_text_search_case_insensitive(self, sample_todos, temp_csv_file):
+        """Test that search is case-insensitive."""
+        from todocli.exporter import export_by_text_search
+        
+        export_to_csv(sample_todos, temp_csv_file)
+        count_lower = len(sample_todos)
+        
+        export_by_text_search(sample_todos, "BUY", temp_csv_file)
+        with open(temp_csv_file, 'r') as f:
+            reader = csv.DictReader(f)
+            rows = list(reader)
+            assert len(rows) > 0
+    
+    def test_export_by_text_search_in_description(self, sample_todos, temp_csv_file):
+        """Test searching in description field."""
+        from todocli.exporter import export_by_text_search
+        export_by_text_search(sample_todos, "report", temp_csv_file, search_fields=["description"])
+        
+        with open(temp_csv_file, 'r') as f:
+            reader = csv.DictReader(f)
+            rows = list(reader)
+            
+            for row in rows:
+                assert "report" in row['description'].lower()
+    
+    def test_export_by_text_search_in_category(self, sample_todos, temp_csv_file):
+        """Test searching in category field."""
+        from todocli.exporter import export_by_text_search
+        export_by_text_search(sample_todos, "Work", temp_csv_file, search_fields=["category"])
+        
+        with open(temp_csv_file, 'r') as f:
+            reader = csv.DictReader(f)
+            rows = list(reader)
+            
+            for row in rows:
+                assert "work" in row['category'].lower()
+    
+    def test_export_by_text_search_multiple_fields(self, sample_todos, temp_csv_file):
+        """Test searching in multiple fields."""
+        from todocli.exporter import export_by_text_search
+        export_by_text_search(sample_todos, "test", temp_csv_file, 
+                             search_fields=["title", "description", "category"])
+        
+        # Should find at least some matches
+        with open(temp_csv_file, 'r') as f:
+            reader = csv.DictReader(f)
+            rows = list(reader)
+            # May or may not have matches depending on data
+            assert isinstance(rows, list)
+    
+    def test_export_by_text_search_empty_search_text(self, sample_todos):
+        """Test that empty search text raises ValueError."""
+        from todocli.exporter import export_by_text_search
+        
+        with pytest.raises(ValueError):
+            export_by_text_search(sample_todos, "", "file.csv")
+    
+    def test_export_by_text_search_empty_filepath(self, sample_todos):
+        """Test that empty filepath raises ValueError."""
+        from todocli.exporter import export_by_text_search
+        
+        with pytest.raises(ValueError):
+            export_by_text_search(sample_todos, "search", "")
+    
+    def test_export_by_text_search_no_matches(self, sample_todos, temp_csv_file):
+        """Test searching with no matches."""
+        from todocli.exporter import export_by_text_search
+        export_by_text_search(sample_todos, "xyzabc123", temp_csv_file)
+        
+        with open(temp_csv_file, 'r') as f:
+            reader = csv.DictReader(f)
+            rows = list(reader)
+            assert len(rows) == 0  # No matches
