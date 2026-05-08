@@ -22,7 +22,8 @@ class TestDatabaseInitialization:
     def test_database_creation(self, temp_db_file):
         """Test creating a new Database instance."""
         db = Database(temp_db_file)
-        assert db.db_path == temp_db_file
+        # db_path may be a string or Path object
+        assert str(db.db_path) == str(temp_db_file)
         assert not os.path.exists(temp_db_file)  # DB file not created yet
     
     def test_init_db_creates_schema(self, db_instance):

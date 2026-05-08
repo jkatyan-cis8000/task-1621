@@ -1,0 +1,19 @@
+Metadata-Version: 2.4
+Name: todocli
+Version: 0.1.0
+Summary: A modular Python CLI todo manager with SQLite persistence and CSV export
+Author: Todo CLI Team
+Classifier: Programming Language :: Python :: 3
+Classifier: License :: OSI Approved :: MIT License
+Classifier: Operating System :: OS Independent
+Requires-Python: >=3.8
+Description-Content-Type: text/markdown
+Dynamic: author
+Dynamic: classifier
+Dynamic: description
+Dynamic: description-content-type
+Dynamic: requires-python
+Dynamic: summary
+
+# task-1621
+Build a Python CLI todo manager: add tasks with pr

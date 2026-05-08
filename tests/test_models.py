@@ -307,12 +307,13 @@ class TestTodoSerialization:
         assert isinstance(todo.updated_at, datetime)
     
     def test_from_dict_missing_optional_fields(self):
-        """Test from_dict with minimal required fields."""
+        """Test from_dict with all required fields."""
         data = {
             "title": "Minimal Task",
             "description": "Just the basics",
             "priority": "medium",
-            "category": "Test"
+            "category": "Test",
+            "completed": False
         }
         
         todo = Todo.from_dict(data)
