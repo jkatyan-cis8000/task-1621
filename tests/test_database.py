@@ -530,3 +530,144 @@ class TestDatabaseConversion:
         
         assert true_todo.completed is True
         assert false_todo.completed is False
+
+
+class TestDatabaseAdditionalMethods:
+    """Test additional database methods for full coverage."""
+    
+    def test_get_categories(self, populated_db):
+        """Test get_categories method."""
+        categories = populated_db.get_categories()
+        
+        assert 'Work' in categories
+        assert 'Shopping' in categories
+        assert 'Personal' in categories
+        # Empty category should not be in list
+    
+    def test_count_todos_with_filters(self, populated_db):
+        """Test count_todos with various filters."""
+        # Count all
+        total_count = populated_db.count_todos()
+        assert total_count == 6
+        
+        # Count high priority
+        high_count = populated_db.count_todos({"priority": "high"})
+        assert high_count >= 2
+        
+        # Count by category
+        work_count = populated_db.count_todos({"category": "Work"})
+        assert work_count >= 2
+        
+        # Count completed
+        completed_count = populated_db.count_todos({"completed": True})
+        assert completed_count == 1
+    
+    def test_get_all_todos(self, populated_db):
+        """Test get_all_todos method."""
+        todos = populated_db.get_all_todos()
+        
+        assert len(todos) == 6
+        assert all(isinstance(t, Todo) for t in todos)
+    
+    def test_get_todo_by_id_not_found(self, populated_db):
+        """Test get_todo_by_id with non-existent ID."""
+        todo = populated_db.get_todo_by_id(9999)
+        
+        assert todo is None
+    
+    def test_get_todo_by_id_found(self, populated_db):
+        """Test get_todo_by_id with valid ID."""
+        # Get first todo to know the ID
+        all_todos = populated_db.get_todos()
+        if all_todos:
+            first_id = all_todos[0].id
+            todo = populated_db.get_todo_by_id(first_id)
+            
+            assert todo is not None
+            assert todo.id == first_id
+    
+    def test_clear_all(self, populated_db):
+        """Test clear_all method."""
+        # Verify there are todos
+        assert len(populated_db.get_todos()) > 0
+        
+        # Clear all
+        populated_db.clear_all()
+        
+        # Verify empty
+        assert len(populated_db.get_todos()) == 0
+    
+    def test_update_todo_with_empty_fields(self, populated_db):
+        """Test update_todo with empty fields dict."""
+        all_todos = populated_db.get_todos()
+        if all_todos:
+            todo_id = all_todos[0].id
+            original_title = all_todos[0].title
+            
+            # Update with no fields
+            result = populated_db.update_todo(todo_id, {})
+            
+            # Should return False (no update)
+            assert result is False
+            
+            # Title should not change
+            todo = populated_db.get_todo_by_id(todo_id)
+            assert todo.title == original_title
+    
+    def test_database_connection_management(self, temp_db_file):
+        """Test that database properly manages connections."""
+        db = Database(temp_db_file)
+        db.init_db()
+        
+        # Add multiple todos to test connection handling
+        for i in range(10):
+            todo = Todo(title=f"Task {i}", description=f"Desc {i}")
+            db.add_todo(todo)
+        
+        # Verify all were added
+        todos = db.get_todos()
+        assert len(todos) == 10
+    
+    def test_filter_invalid_priority(self, populated_db):
+        """Test filtering with invalid priority raises ValueError."""
+        with pytest.raises(ValueError, match="Invalid priority"):
+            populated_db.get_todos({"priority": "invalid"})
+    
+    def test_filter_invalid_completed_type(self, populated_db):
+        """Test filtering with non-boolean completed raises ValueError."""
+        with pytest.raises(ValueError, match="Completed filter must be a boolean"):
+            populated_db.get_todos({"completed": "yes"})
+    
+    def test_count_with_invalid_filters(self, populated_db):
+        """Test count_todos with invalid filter values."""
+        with pytest.raises(ValueError):
+            populated_db.count_todos({"priority": "invalid"})
+    
+    def test_update_todo_invalid_id_type(self, populated_db):
+        """Test update_todo with invalid ID type."""
+        with pytest.raises(ValueError):
+            populated_db.update_todo("not_an_int", {"title": "New"})
+    
+    def test_update_todo_invalid_fields(self, populated_db):
+        """Test update_todo with invalid field names."""
+        all_todos = populated_db.get_todos()
+        if all_todos:
+            todo_id = all_todos[0].id
+            
+            with pytest.raises(ValueError, match="Cannot update fields"):
+                populated_db.update_todo(todo_id, {"invalid_field": "value"})
+    
+    def test_delete_todo_invalid_id(self, populated_db):
+        """Test delete_todo with invalid ID type."""
+        with pytest.raises(ValueError):
+            populated_db.delete_todo("not_an_int")
+    
+    def test_mark_complete_invalid_id(self, populated_db):
+        """Test mark_complete with invalid ID type."""
+        with pytest.raises(ValueError):
+            populated_db.mark_complete("not_an_int")
+    
+    def test_get_todo_by_id_invalid_type(self, populated_db):
+        """Test get_todo_by_id with invalid ID type."""
+        with pytest.raises(ValueError):
+            populated_db.get_todo_by_id("not_an_int")

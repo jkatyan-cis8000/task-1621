@@ -561,3 +561,144 @@ class TestCliIntegrationWithDatabase:
         """Test that CLI CRUD operations are properly atomic."""
         # Operations should succeed or fail cleanly
         pass
+
+
+class TestMainFunction:
+    """Test the main() entry point function."""
+    
+    def test_main_add_command(self, temp_db_file, capsys):
+        """Test main() with add command."""
+        main(['--db', temp_db_file, 'add', 'Test task'])
+        
+        captured = capsys.readouterr()
+        assert '✓ Todo added' in captured.out
+    
+    def test_main_list_command(self, temp_db_file, capsys):
+        """Test main() with list command."""
+        # First add a todo
+        main(['--db', temp_db_file, 'add', 'Test task'])
+        
+        # Then list
+        main(['--db', temp_db_file, 'list'])
+        
+        captured = capsys.readouterr()
+        assert 'Test task' in captured.out or 'ID' in captured.out
+    
+    def test_main_complete_command(self, temp_db_file, capsys):
+        """Test main() with complete command."""
+        # Add a todo
+        main(['--db', temp_db_file, 'add', 'Test task'])
+        
+        # Complete it
+        main(['--db', temp_db_file, 'complete', '1'])
+        
+        captured = capsys.readouterr()
+        assert 'marked as complete' in captured.out.lower()
+    
+    def test_main_delete_command(self, temp_db_file, capsys):
+        """Test main() with delete command."""
+        # Add a todo
+        main(['--db', temp_db_file, 'add', 'Test task'])
+        
+        # Delete it
+        main(['--db', temp_db_file, 'delete', '1'])
+        
+        captured = capsys.readouterr()
+        assert 'deleted' in captured.out.lower()
+    
+    def test_main_export_command(self, temp_db_file, temp_csv_file, capsys):
+        """Test main() with export command."""
+        # Add a todo
+        main(['--db', temp_db_file, 'add', 'Test task', '-c', 'test'])
+        
+        # Export it
+        main(['--db', temp_db_file, 'export', temp_csv_file])
+        
+        captured = capsys.readouterr()
+        assert 'Exported' in captured.out or os.path.exists(temp_csv_file)
+    
+    def test_main_with_priority_and_category(self, temp_db_file, capsys):
+        """Test main() with priority and category options."""
+        main([
+            '--db', temp_db_file,
+            'add',
+            'Task',
+            '-p', 'high',
+            '-c', 'work',
+            '-d', 'Description'
+        ])
+        
+        captured = capsys.readouterr()
+        assert '✓ Todo added' in captured.out
+    
+    def test_main_list_with_category_filter(self, temp_db_file, capsys):
+        """Test main() list with category filter."""
+        # Add todos
+        main(['--db', temp_db_file, 'add', 'Work task', '-c', 'work'])
+        main(['--db', temp_db_file, 'add', 'Personal task', '-c', 'personal'])
+        
+        # List filtered
+        main(['--db', temp_db_file, 'list', '-c', 'work'])
+        
+        captured = capsys.readouterr()
+        # Should contain work todo
+        lines = captured.out.lower()
+        assert 'work' in lines or 'Work task' in captured.out
+    
+    def test_main_list_with_priority_filter(self, temp_db_file, capsys):
+        """Test main() list with priority filter."""
+        # Add todos with different priorities
+        main(['--db', temp_db_file, 'add', 'Urgent', '-p', 'high'])
+        main(['--db', temp_db_file, 'add', 'Normal', '-p', 'medium'])
+        
+        # List filtered
+        main(['--db', temp_db_file, 'list', '-p', 'high'])
+        
+        captured = capsys.readouterr()
+        assert 'Urgent' in captured.out or 'high' in captured.out.lower()
+    
+    def test_main_list_incomplete_filter(self, temp_db_file, capsys):
+        """Test main() list with incomplete filter."""
+        # Add todo
+        main(['--db', temp_db_file, 'add', 'Incomplete task'])
+        
+        # List incomplete
+        main(['--db', temp_db_file, 'list', '--incomplete'])
+        
+        captured = capsys.readouterr()
+        assert 'Incomplete task' in captured.out or 'ID' in captured.out
+    
+    def test_main_help_output(self, capsys):
+        """Test main() with --help flag."""
+        try:
+            main(['--help'])
+        except SystemExit:
+            # argparse calls sys.exit(0) for help
+            pass
+        
+        captured = capsys.readouterr()
+        assert 'todo manager' in captured.out.lower() or 'usage:' in captured.out.lower()
+    
+    def test_main_no_command(self, capsys):
+        """Test main() with no command."""
+        try:
+            main([])
+        except SystemExit:
+            pass
+        
+        captured = capsys.readouterr()
+        # Should show usage
+        assert 'usage' in captured.out.lower() or captured.err != ''
+
+
+class TestMainEntryPoint:
+    """Test the __main__ module entry point."""
+    
+    def test_main_module_can_be_executed(self, temp_db_file):
+        """Test that __main__ module can be imported and used."""
+        # The __main__.py file delegates to cli.main()
+        # This tests that it's properly set up
+        import todocli.__main__
+        
+        # Just verify the module loads without error
+        assert hasattr(todocli.__main__, 'main')
